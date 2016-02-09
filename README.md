@@ -22,14 +22,9 @@ typedef format::Format<5, 25> blink;
 
 int main() {
 	
-    std::cout << format::bold(true) << "this is bold. ";
-    std::cout << blink(true) << "This is also bold and might be  blinking if your terminal supports it. ";
-    std::cout << format::bold(false) << blink(false) << format::italic(true) << "This is italic. ";
-    std::cout << format::clear << "Everything is back to normal." << std::endl;
+    std::cout << format::bold(true) << "this is bold. " << blink(true) << "This is also bold and might be blinking if your terminal supports it. " << format::bold(false) << blink(false) << format::italic(true) << "This is italic. " << format::clear << "Everything is back to normal." << std::endl;
     
-    std::cout << format::fg(1) << "Colored text, ";
-    std::cout << format::bg(2) << "with colored background. ";
-    std::cout << format::clear << "Normal text again." << std::endl;
+    std::cout << format::fg(1) << "Colored text, " << format::bg(2) << "with colored background. " << format::clear << "Normal text again." << std::endl;
     
 }
 ```
