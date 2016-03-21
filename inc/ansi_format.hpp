@@ -70,7 +70,7 @@ namespace format {
     typedef Color<48, 49> bg;
 
     // clear funtion
-    std::ostream& clear(std::ostream& os) {
+    inline std::ostream& clear(std::ostream& os) {
         os << "\033[0m";
         return os;
     }
