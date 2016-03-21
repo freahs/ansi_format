@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 #ifndef ANSI_FORMAT_H
 #define ANSI_FORMAT_H
 
@@ -28,7 +28,6 @@ namespace format {
         bool m_status;
 
     public:
-        // when constructed, store format status in variable
         Format(bool status) : m_status(status) { }
 
         // When operator() is called with an ostream, apply format if
@@ -67,16 +66,25 @@ namespace format {
     };
 
     // Initialize format as inactive
-    template<int ON, int OFF> bool Format<ON, OFF>::s_current_status = false;
+    template<int ON, int OFF>
+    bool Format<ON, OFF>::s_current_status = false;
 
-    // make operator<< call operator() on the functor
-    template<int ON, int OFF> std::ostream& operator<<(std::ostream& os, Format<ON, OFF> format) { return format(os); }
+    // Make operator<< call operator() on the functor
+    template<int ON, int OFF>
+    std::ostream& operator<<(std::ostream& os, Format<ON, OFF> format) {
+        return format(os);
+    }
 
     // -1 represents default terminal color
-    template<int ON, int OFF> int Color<ON, OFF>::s_current_color = -1;
-    template<int ON, int OFF> std::ostream& operator<<(std::ostream& os, Color<ON, OFF> color) { return color(os); }
+    template<int ON, int OFF>
+    int Color<ON, OFF>::s_current_color = -1;
 
-    // typedefs for common formats
+    template<int ON, int OFF>
+    std::ostream& operator<<(std::ostream& os, Color<ON, OFF> color) {
+        return color(os);
+    }
+
+    // Common formats
     typedef Format<1, 22> bold;
     typedef Format<3, 23> italic;
     typedef Format<4, 24> underline;
