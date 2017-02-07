@@ -65,13 +65,44 @@ namespace format {
         }
     };
 
+    // Functor that positions the cursor in an ostream
+    class pos {
+    private:
+        int m_row;
+        int m_col;
+
+    public:
+        pos(int row, int col) : m_row(row), m_col(col) { }
+
+        std::ostream& operator()(std::ostream& os) const {
+            os << "\033[" << m_row << ";" << m_col <<  "H";
+            return os;
+        }
+    };
+
+    class hide {
+    private:
+        bool            m_hide;
+    public:
+        hide(bool hide) : m_hide(hide) { }
+
+        std::ostream& operator()(std::ostream& os) const {
+            if (m_hide) {
+                os << "\033[?25l";
+            } else {
+                os << "\033[?25h";
+            }
+            return os;
+        }
+    };
+
     // Initialize format as inactive
     template<int ON, int OFF>
     bool Format<ON, OFF>::s_current_status = false;
 
     // Make operator<< call operator() on the functor
     template<int ON, int OFF>
-    std::ostream& operator<<(std::ostream& os, Format<ON, OFF> format) {
+    inline std::ostream& operator<<(std::ostream& os, Format<ON, OFF> format) {
         return format(os);
     }
 
@@ -80,7 +111,7 @@ namespace format {
     int Color<ON, OFF>::s_current_color = -1;
 
     template<int ON, int OFF>
-    std::ostream& operator<<(std::ostream& os, Color<ON, OFF> color) {
+    inline std::ostream& operator<<(std::ostream& os, Color<ON, OFF> color) {
         return color(os);
     }
 
@@ -92,6 +123,15 @@ namespace format {
     // Foreground and background color
     typedef Color<38, 39> fg;
     typedef Color<48, 49> bg;
+
+    inline std::ostream& operator<<(std::ostream& os, pos p) {
+        return p(os);
+    }
+
+
+    inline std::ostream& operator<<(std::ostream& os, hide h) {
+       return h(os);
+    } 
 
     // clear funtion
     inline std::ostream& clear(std::ostream& os) {
