@@ -131,14 +131,6 @@ namespace format {
         return os;
     }
 
-    inline std::ostream& scp(std::ostream& os) {
-        os << "\033[s";
-    }
-
-    inline std::ostream& rcp(std::ostream& os) {
-        os << "\033[u";
-    }
-
 }
 
 #endif
