@@ -16,7 +16,7 @@ Additional SGR formats can be specified by using ``format::binary<int, int>(bool
 #include "inc/ansi_format.hpp"
 #include <iostream>
 
-typedef format::Format<5, 25> blink;
+using blink = format::binary<5, 25>;
 
 int main() {
 	
