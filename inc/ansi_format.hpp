@@ -21,94 +21,91 @@
 
 namespace format {
 
-    template<int ON, int OFF> class binary {
+    template<typename T> class stream_format {
+    protected:
+        virtual void apply(std::ostream& os) const = 0;
+
+    public:
+        std::ostream& operator()(std::ostream& os) const {
+            apply(os);
+            return os;
+        }
+
+        friend inline std::ostream& operator<<(std::ostream& os, const stream_format& sf) {
+            static const std::ios null_state(NULL);
+            std::ios state(NULL);
+            state.copyfmt(os);
+            os.copyfmt(null_state);
+            sf.apply(os);
+            os.copyfmt(state);
+            return os;
+        }
+    };
+
+    template<int ON, int OFF> class binary : public stream_format<binary<ON, OFF>> {
         bool m_status;
     public:
         binary(bool status) : m_status(status) { }
-        std::ostream& operator()(std::ostream& os) const {
+        void apply(std::ostream& os) const override {
             os << "\033[";
             if (m_status) { os << ON; }
             else          { os << OFF; }
-            return os << "m";
-        }
-        friend inline std::ostream& operator<<(std::ostream& os, binary<ON, OFF> b) {
-            return b(os);
+            os << "m";
         }
     };
 
-    template <int CODE> class color_8 {
+    template <int CODE> class color_8 : public stream_format<color_8<CODE>> {
         uint8_t m_color;
     public:
         color_8(uint8_t color) : m_color(color) { }
-        std::ostream& operator()(std::ostream& os) const {
-            return os << "\033["<< CODE << ";5;" << static_cast<int>(m_color) << "m";
-        }
-        friend inline std::ostream& operator<<(std::ostream& os, const color_8<CODE> color) {
-            return color(os);
+        void apply(std::ostream& os) const override {
+            os << "\033[" << CODE << ";5;" << static_cast<int>(m_color) << "m";
         }
     };
 
-    template <int CODE> class color_24 {
-        uint8_t r, g, b;
+    template <int CODE> class color_24 : public stream_format<color_24<CODE>>{
+        uint8_t m_r, m_g, m_b;
     public:
-        color_24(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b) { }
-        std::ostream& operator()(std::ostream& os) const {
-            os << "\033[" << CODE << ";2;" << static_cast<int>(r) << ";" << static_cast<int>(g) << ";" << static_cast<int>(b) << "m";
-            return os;
-        }
-        friend inline std::ostream& operator<<(std::ostream& os, const color_24<CODE> color) {
-            return color(os);
+        color_24(uint8_t r, uint8_t g, uint8_t b) : m_r(r), m_g(g), m_b(b) { }
+        void apply(std::ostream& os) const override {
+            os << "\033[" << CODE << ";2;" << static_cast<int>(m_r) << ";" << static_cast<int>(m_g) << ";" << static_cast<int>(m_b) << "m";
         }
     };
 
-    template <int CODE> struct color_default {
-        std::ostream& operator()(std::ostream& os) const {
-            return os << "\033[" << CODE << "m";
-        }
-        friend inline std::ostream& operator<<(std::ostream& os, const color_default<CODE> color) {
-            return color(os);
+    template <int CODE> struct color_default : public stream_format<color_default<CODE>> {
+        void apply(std::ostream& os) const override {
+            os << "\033[" << CODE << "m";
         }
     };
 
-    class pos {
+    class pos : public stream_format<pos> {
         int m_row, m_col;
     public:
         pos(int row, int col) : m_row(row), m_col(col) { }
-        std::ostream& operator()(std::ostream& os) const {
-            return os << "\033[" << m_row << ";" << m_col <<  "H";
-        }
-        friend inline std::ostream& operator<<(std::ostream& os, pos p) {
-            return p(os);
+        void apply(std::ostream& os) const override {
+            os << "\033[" << m_row << ";" << m_col <<  "H";
         }
     };
 
-    class rpos {
+    class rpos : public stream_format<rpos> {
         int m_row, m_col;
     public:
         rpos(int row, int col) : m_row(row), m_col(col) { }
-        std::ostream& operator()(std::ostream& os) const {
+        void apply(std::ostream& os) const override {
             if (m_row < 0) { os << "\033[" << -m_row << "A"; }
             if (m_row > 0) { os << "\033[" << m_row << "B"; }
             if (m_col < 0) { os << "\033[" << -m_col << "D"; }
             if (m_col > 0) { os << "\033[" << m_col << "C"; }
-            return os;
         }
-        friend inline std::ostream& operator<<(std::ostream& os, rpos rp) {
-            return rp(os);
-        }
-
     };
 
-    class hide {
-        bool m_hide;
+    class hide : public stream_format<hide> {
+        bool m_hidden;
     public:
-        hide(bool hide) : m_hide(hide) { }
-        std::ostream& operator()(std::ostream& os) const {
-            if (m_hide) { return os << "\033[?25l"; }
-            else        { return os << "\033[?25h"; }
-        }
-        friend inline std::ostream& operator<<(std::ostream& os, hide h) {
-            return h(os);
+        hide(bool hidden) : m_hidden(hidden) { }
+        void apply(std::ostream& os) const override {
+            if (m_hidden) { os << "\033[?25l"; }
+            else          { os << "\033[?25h"; }
         }
     };
 
