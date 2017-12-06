@@ -8,9 +8,7 @@ There are some default provided manipulators: ``format::bold(bool)``, ``format::
 
 Additional SGR formats can be specified by using ``Format<int, int>(bool)`` where the first int is the [ANSI SGR code](https://en.wikipedia.org/wiki/ANSI_escape_code) to turn the feature on, the second the one to turn it off. 
 
-``format::fg(int)`` and ``format::bg(int)`` will apply text and background color respectively. -1 is used for terminal default color.
-
-Right now, functors will only work on one stream at a time (preferably ``std::cout``).
+``format::fg(uint8_t)`` and ``format::bg(uint8_t)`` will apply text and background [xterm 8-bit color](https://upload.wikimedia.org/wikipedia/commons/1/15/Xterm_256color_chart.svg) respectively.  ``format::fg(uint8_t r, uint8_t g, uint8_t b)`` and its ``format::bg`` equivalent will apply true color. ``format::fg_default`` and ``format::bg_default`` is used for terminal default color.
 
 ### Example
 
