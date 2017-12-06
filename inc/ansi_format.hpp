@@ -117,10 +117,17 @@ namespace format {
     // Foreground and background color
     inline color_8<38> fg(uint8_t c) { return color_8<38>(c); }
     inline color_24<38> fg(uint8_t r, uint8_t g, uint8_t b) { return color_24<38>(r, g, b); }
-    using fg_default = color_default<39>;
     inline color_8<48> bg(uint8_t c) { return color_8<48>(c); }
     inline color_24<48> bg(uint8_t r, uint8_t g, uint8_t b) { return color_24<48>(r, g, b); }
-    using bg_default = color_default<49>;
+
+    inline std::ostream& fg_default(std::ostream& os) {
+        return os << color_default<39>();
+    }
+
+    inline std::ostream& bg_default(std::ostream& os) {
+        return os << color_default<49>();
+
+    }
 
     // clear funtion
     inline std::ostream& clear(std::ostream& os) {

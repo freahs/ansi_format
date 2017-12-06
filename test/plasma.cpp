@@ -86,7 +86,7 @@ struct plasma {
                 for (int c = 0; c < m_cols; ++c) {
                     print(r, c);
                 }
-                std::cout << format::bg_default() << "\n";
+                std::cout << format::bg_default << "\n";
             }
             std::cout << std::endl;
             std::cout << format::rpos(-m_rows - 1, 0);
