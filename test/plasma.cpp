@@ -4,6 +4,8 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <random>
+#include <limits>
 #include "../inc/ansi_format.hpp"
 
 static const float pi = 3.141592;
@@ -67,7 +69,11 @@ struct plasma {
     }
 
     void run (int dur) {
-        run(dur, 0);
+        static std::random_device srd;
+        static std::mt19937 mt(srd());
+        auto dist = std::uniform_int_distribution<int>(0, 100000);
+        auto x = dist(mt);
+        run(dur, x);
     }
 
 
@@ -99,13 +105,13 @@ struct plasma {
 
 };
 
-int main(int argv, char** argc) {
-    int dur = 4000; // 1 second
+int main(int argv, char* argc[]) {
+    int dur = 4000; // 4 seconds
     if (argv > 1) {
         dur =  atoi(argc[1]);
     }
 
-    plasma p(20, 80);
+    plasma p(40, 160);
     p.run(dur);
 
 }
