@@ -118,6 +118,17 @@ struct plasma {
             std::this_thread::sleep_for(std::chrono::milliseconds(25 - delta));
             dur -= 25;
         }
+        std::cout << format::hide(true);
+        std::cout << format::bg_default << format::fg_default;
+        for (int r = 0; r < m_rows; ++r) {
+            for (int c = 0; c < m_cols; ++c) {
+                std::cout << " ";
+            }
+            std::cout << "\n";
+        }
+        std::cout << std::endl;
+        std::cout << format::rpos(-m_rows - 1, 0);
+        std::cout << format::hide(false);
     }
 
 };
@@ -128,7 +139,7 @@ int main(int argv, char* argc[]) {
         dur =  atoi(argc[1]);
     }
 
-    plasma p(40, 160);
+    plasma p(30, 90);
     p.run(dur);
 
 }
