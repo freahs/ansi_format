@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -44,6 +45,7 @@ struct color {
         return this->intensity < that.intensity;
     }
 };
+
 
 struct plasma {
     int m_rows, m_cols;
@@ -80,21 +82,17 @@ struct plasma {
         return m_colors[row][col];
     }
 
-    void print(int row, int col) {
-        color& bg = get_color(row, col);
-        std::cout << format::bg(bg.r, bg.g, bg.b) << " ";
-    }
 
-    void run (int dur) {
+    static int get_seed() {
         static std::random_device srd;
         static std::mt19937 mt(srd());
         auto dist = std::uniform_int_distribution<int>(0, 100000);
         auto x = dist(mt);
-        run(dur, x);
+        return x;
     }
 
-
-    void run(int dur, int seed) {
+    /*
+    void run1(int dur, int seed) {
         std::cout << format::clear;
         int i = 0;
         while(dur > 0) {
@@ -107,7 +105,8 @@ struct plasma {
             std::cout << format::hide(true);
             for (int r = 0; r < m_rows; ++r) {
                 for (int c = 0; c < m_cols; ++c) {
-                    print(r, c);
+                    color& bg = get_color(r, c);
+                    std::cout << format::bg(bg.r, bg.g, bg.b) << " ";
                 }
                 std::cout << format::bg_default << "\n";
             }
@@ -115,7 +114,7 @@ struct plasma {
             std::cout << format::rpos(-m_rows - 1, 0);
             std::cout << format::hide(false);
             auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count();
-            std::this_thread::sleep_for(std::chrono::milliseconds(25 - delta));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(25 - delta));
             dur -= 25;
         }
         std::cout << format::hide(true);
@@ -130,16 +129,73 @@ struct plasma {
         std::cout << format::rpos(-m_rows - 1, 0);
         std::cout << format::hide(false);
     }
+    */
 
+    void run2(int dur, int seed) {
+        std::cout << format2::clear;
+        int i = 0;
+        while(dur > 0) {
+            ++i;
+            auto start = std::chrono::system_clock::now();
+            auto t = (i + seed)/200.0;
+
+            set_colors(t);
+
+            std::cout << format2::hide(true);
+            for (int r = 0; r < m_rows; ++r) {
+                for (int c = 0; c < m_cols; ++c) {
+                    color& bg = get_color(r, c);
+                    std::cout << format2::bg(bg.r, bg.g, bg.b) << " ";
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
+                std::cout << format2::bg(-1) << format2::bg_default << std::endl;
+            }
+            std::cout << std::endl;
+            std::cout << format2::rpos(-m_rows - 1, 0);
+            std::cout << format2::hide(false);
+            auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count();
+            //std::this_thread::sleep_for(std::chrono::milliseconds(25 - delta));
+            dur -= 25;
+        }
+        std::cout << format2::hide(true);
+        std::cout << format2::bg_default << format2::fg_default;
+        for (int r = 0; r < m_rows; ++r) {
+            for (int c = 0; c < m_cols; ++c) {
+                std::cout << " ";
+            }
+            std::cout << "\n";
+        }
+        std::cout << std::endl;
+        std::cout << format2::rpos(-m_rows - 1, 0);
+        std::cout << format2::hide(false);
+    }
 };
 
+void test1(plasma& p, int dur, int seed) {
+    auto start = std::chrono::steady_clock::now();
+    //p.run1(dur, seed);
+    auto end = std::chrono::steady_clock::now();
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
+}
+
+int test2(plasma& p, int dur, int seed) {
+    auto start = std::chrono::steady_clock::now();
+    p.run2(dur, seed);
+    auto end = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+}
+
+
 int main(int argv, char* argc[]) {
-    int dur = 4000; // 4 seconds
+    int dur = 10000; // 4 seconds
+    auto seed = plasma::get_seed();
     if (argv > 1) {
-        dur =  atoi(argc[1]);
+        seed =  atoi(argc[1]);
     }
 
-    plasma p(30, 90);
-    p.run(dur);
+    plasma p(50, 120);
+    auto time = test2(p, dur, seed);
+    std::cout << "seed " << seed << " took " << time << " ms." << std::endl;
+
 
 }
