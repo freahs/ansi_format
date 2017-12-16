@@ -26,239 +26,183 @@
 #include <cassert>
 #include <iostream>
 
-     namespace format {
 
-         static size_t cache_size = 5;
+namespace format2 {
+    namespace detail {
 
-         namespace __impl {
+        template<class C, int...INTS> class stream_output;
 
-             /**
-              * Abstract class which all stream manipulators which must implement using CRTP. This primary
-              * template implements a basic LRU cache of the current state of the cache_size most resently
-              * used ostreams. A cache is needed to reduce memory footprint and CRTP is used to provide a
-              * unique cache for each derived class. Without a cache, care has to be taken not to flood the
-              * stream with ANSI escape codes.
-              * STATE_T is the type of the state stored in the cache
-              */
-             template<typename T, typename STATE_T = void> class stream_format {
-                 static_assert(std::is_default_constructible<STATE_T>::value, "state type must be default constructable");
-                 static_assert(std::is_copy_constructible<STATE_T>::value, "state type must be copy constructable");
+        struct color_8 { static constexpr bool use_ios_xalloc = true; };
+        struct color_24 { static constexpr bool use_ios_xalloc = true; };
+        struct binary {static constexpr bool use_ios_xallox = true; };
+        struct pos { static constexpr bool use_ios_xalloc = true; };
+        struct rpos { static constexpr bool use_ios_xalloc = false; };
+        struct hide { static constexpr bool use_ios_xalloc = true; };
 
-             private:
-                 using list_type = std::list<std::pair<std::ostream*, STATE_T>>;
-                 using list_iterator = typename list_type::const_iterator;
-                 using map_type = std::unordered_map<std::ostream*, list_iterator>;
-                 static list_type s_cache_list;
-                 static map_type s_cache_map;
-                 STATE_T m_state;
+        template<typename, int...> struct output_formater;
 
-                 bool cache_contains(std::ostream* os) const {
-                     return s_cache_map.find(os) != s_cache_map.end();
-                 }
+        template<class C, int...INTS> class stream_output {
+            static const int xid;
+            const int v;
 
-                 const STATE_T& cache_get(std::ostream* os) const {
-                     assert(cache_contains(os));
-                     s_cache_list.splice(
-                         s_cache_list.begin(),
-                         s_cache_list,
-                         s_cache_map.find(os)->second);
-                     return s_cache_list.front().second;
-                 }
+            template<class Q = C>
+            typename std::enable_if<Q::use_ios_xalloc, void>::type apply(std::ostream& os) const {
+                if (os.iword(xid) != v) {
+                    static const std::ios null_state(NULL);
+                    std::ios state(NULL);
+                    state.copyfmt(os);
+                    os.copyfmt(null_state);
+                    output_formater<C, INTS...>::apply(os, v);
+                    os.copyfmt(state);
+                    os.iword(xid) = v;
+                }
+            }
 
-                 void cache_put(std::ostream* os, const STATE_T& data) const {
-                     s_cache_list.push_front({os, data});
-                     s_cache_map[os] = s_cache_list.begin();
-                     if (s_cache_map.size() > cache_size) {
-                         auto e = std::prev(s_cache_list.end());
-                         s_cache_map.erase(e->first);
-                         s_cache_list.erase(e);
-                     }
-                 }
+            template<class Q = C>
+            typename std::enable_if<!Q::use_ios_xalloc, void>::type apply(std::ostream& os) const {
+                static const std::ios null_state(NULL);
+                std::ios state(NULL);
+                state.copyfmt(os);
+                os.copyfmt(null_state);
+                output_formater<C, INTS...>::apply(os, v);
+                os.copyfmt(state);
+            }
 
-             protected:
 
-                 // The actual manipulation of the stream should take place here.
-                 // state is the state given to the constructor that should be applied to
-                 // the stream (in some manner) 
-                 // Note that this method will not be called if the state is the same as the one
-                 // in the cache.
-                 virtual void apply(std::ostream& os, const STATE_T& state) const = 0;
 
-             public:
-                 // The constructor takes a state that should be applied to the ostream.
-                 stream_format(const STATE_T& state) : m_state(state) { }
-                 stream_format() = delete;
-                 stream_format(const stream_format&) = delete;
+        public:
+            stream_output(int _v) : v(_v) { }
+            stream_output(uint8_t r, uint8_t g, uint8_t b) : v(r << 16 | g << 8 | b) { }
+            stream_output(int16_t row, int16_t col) : v(row << 16 | col) { }
+            stream_output(bool b) : v(static_cast<bool>(b)) { }
 
-                 // Some manipulators might affecte the state of others for which the cache
-                 // can be invalidated with this method.
-                 static void invalidate(std::ostream& os) {
-                     auto it = s_cache_map.find(&os);
-                     if (it != s_cache_map.end()) {
-                         s_cache_list.erase(it->second);
-                         s_cache_map.erase(it);
-                     }
-                 }
+            static void invalidate(std::ostream& os) {
+                os.iword(xid) = -2;
+            }
 
-                 std::ostream& operator()(std::ostream& os) const {
-                     apply(os);
-                     return os;
-                 }
+            friend std::ostream& operator<<(std::ostream& os, const stream_output& so) {
+                so.apply(os);
+                return os;
+            }
+        };
 
-                 // the stream operator saves the state of the stream, applies the manipulator
-                 // and then restores the state IF the manipulator state is not already in
-                 // effect.
-                 friend std::ostream& operator<<(std::ostream& os, const stream_format& sf) {
-                     if (!sf.cache_contains(&os) || sf.cache_get(&os) != sf.m_state) {
-                         static const std::ios null_state(NULL);
-                         std::ios state(NULL);
-                         state.copyfmt(os);
-                         os.copyfmt(null_state);
-                         sf.apply(os, sf.m_state);
-                         os.copyfmt(state);
-                         sf.cache_put(&os, sf.m_state);
-                     }
-                     return os;
-                 }
-             };
+        template<class C, int...INTS> const int stream_output<C, INTS...>::xid = std::ios::xalloc();
 
-             template<typename T, typename STATE_T>
-             typename stream_format<T, STATE_T>::map_type stream_format<T, STATE_T>::s_cache_map = {};
+        template <int CODE> struct output_formater<color_8, CODE> {
+            static void apply(std::ostream& os, int v) {
+                if (v == -1) { os << "\033[" << (CODE + 1) << "m" << "X"; }
+                else         { os << "\033[" << CODE << ";5;" << v << "m"; }
+                stream_output<color_24, CODE>::invalidate(os);
+            }
+        };
 
-             template<typename T, typename STATE_T>
-             typename stream_format<T, STATE_T>::list_type stream_format<T, STATE_T>::s_cache_list = {};
+        template <int CODE> struct output_formater<color_24, CODE> {
+            static void apply(std::ostream& os, int v) {
+                os << "\033[" << CODE << ";2;" <<
+                static_cast<int>(v >> 16 & 0xFF) << ";" <<
+                static_cast<int>(v >> 8 & 0xFF) << ";" <<
+                static_cast<int>(v & 0xFF) << "m";
+                stream_output<color_8, CODE>::invalidate(os);
+            }
+        };
 
-             /*
-              * Partial specialication without cache. Some manipulators (like relative
-              * positioning) won't work properly with a cache.
-              */
-             template<typename T> class stream_format<T, void> {
-             protected:
-                 virtual void apply(std::ostream& os) const = 0;
+        template <int ON, int OFF> struct output_formater<binary, ON, OFF> {
+            static void apply(std::ostream& os, int v) {
+                if (static_cast<bool>(v)) { os << "\033[" << ON << "m"; }
+                else                      { os << "\033[" << OFF << "m"; }
+            }
+        };
 
-             public:
-                 std::ostream& operator()(std::ostream& os) const {
-                     apply(os);
-                     return os;
-                 }
+        template <> struct output_formater<pos> {
+            static void apply(std::ostream& os, int v) {
+                os << "\033[" <<
+                static_cast<int16_t>(v >> 16) << ";" <<
+                static_cast<int16_t>(v & 0xFFFF) << "H";
+                //stream_output<color_8, 38>::invalidate(os);
+                //stream_output<color_8, 48>::invalidate(os);
+                //stream_output<color_24, 38>::invalidate(os);
+                //stream_output<color_24, 48>::invalidate(os);
+            }
+        };
 
-                 friend inline std::ostream& operator<<(std::ostream& os, const stream_format& sf) {
-                     static const std::ios null_state(NULL);
-                     std::ios state(NULL);
-                     state.copyfmt(os);
-                     os.copyfmt(null_state);
-                     sf.apply(os);
-                     os.copyfmt(state);
-                     return os;
-                 }
-             };
+        template <> struct output_formater<rpos> {
+            static void apply(std::ostream& os, int v) {
+                auto row = static_cast<int16_t>(v >> 16);
+                auto col = static_cast<int16_t>(v & 0xFFFF);
+                if (row < 0) { os << "\033[" << -row << "A"; }
+                if (row > 0) { os << "\033[" << row << "B"; }
+                if (col < 0) { os << "\033[" << -col << "D"; }
+                if (col > 0) { os << "\033[" << col << "C"; }
+                //stream_output<color_8, 38>::invalidate(os);
+                //stream_output<color_8, 48>::invalidate(os);
+                //stream_output<color_24, 38>::invalidate(os);
+                //stream_output<color_24, 48>::invalidate(os);
+            }
+        };
 
-             // Binary stream manipulator for some binary state that can be turned on or off.
-             template<int ON, int OFF> class binary : public stream_format<binary<ON, OFF>, bool> {
-             public:
-                 using stream_format<binary<ON, OFF>, bool>::stream_format;
-                 void apply(std::ostream& os, const bool& state) const override {
-                     os << "\033[";
-                     if (state)  { os << ON; }
-                     else        { os << OFF; }
-                     os << "m";
-                 }
-             };
 
-             // Sets either the text color or background color to a xterm_256 (8-bit) color.
-             // CODE = 38 for text, CODE = 48 for background.
-             template <int CODE> struct color_8 : public stream_format<color_8<CODE>, uint8_t> {
-                 using stream_format<color_8<CODE>, uint8_t>::stream_format;
-                 void apply(std::ostream& os, const uint8_t& state) const override {
-                     os << "\033[" << CODE << ";5;" << static_cast<int>(state) << "m";
-                 }
-             };
+        template <> struct output_formater<hide> {
+            static void apply(std::ostream& os, int v) {
+                if (static_cast<bool>(v)) { os << "\033[?25l"; }
+                else                      { os << "\033[?25h"; }
+            }
+        };
 
-             // Sets either the text color or background color to a true color (24-bit) color.
-             // CODE = 38 for text, CODE = 48 for background.
-             template <int CODE> struct color_24 : public stream_format<color_24<CODE>, std::array<uint8_t, 3>> {
-                 color_24(uint8_t r, uint8_t g, uint8_t b) : stream_format<color_24<CODE>, std::array<uint8_t, 3>>({r, g, b}) { }
-                 void apply(std::ostream& os, const std::array<uint8_t, 3>& state) const override {
-                     uint8_t r = state[0];
-                     uint8_t g = state[1];
-                     uint8_t b = state[2];
-                     os << "\033[" << CODE << ";2;" << static_cast<int>(r) << ";" << static_cast<int>(g) << ";" << static_cast<int>(b) << "m";
-                 }
-             };
 
-             // Resets either the text color or the background color to the default terminal color.
-             // CODE = 38 for text, CODE = 48 for background.
-             template <int CODE> struct color_default : public stream_format<color_default<CODE>> {
-                 void apply(std::ostream& os) const override {
-                     os << "\033[" << CODE << "m";
-                     color_8<CODE-1>::invalidate(os);
-                     color_24<CODE-1>::invalidate(os);
-                 }
-             };
-         }
 
-         // Positions the cursor at the position specified. 1,1 is in the top left corner.
-         struct pos : public __impl::stream_format<pos, std::pair<int, int>> {
-             pos(int row, int col) : stream_format<pos, std::pair<int, int>>({row, col}) { }
-             void apply(std::ostream& os, const std::pair<int, int>& state) const override {
-                 int row = state.first;
-                 int col = state.second;
-                 os << "\033[" << row << ";" << col <<  "H";
-             }
-         };
+    }
 
-         // positions the cursor at the position specified, relative to it's current position.
-         // -1,-1 is to the left and above the current position, while 1, 1 is to the right and
-         // below.
-         class rpos : public __impl::stream_format<rpos> {
-             int m_row, m_col;
-         public:
-             rpos(int row, int col) : m_row(row), m_col(col) { }
-             void apply(std::ostream& os) const override {
-                 if (m_row < 0) { os << "\033[" << -m_row << "A"; }
-                 if (m_row > 0) { os << "\033[" << m_row << "B"; }
-                 if (m_col < 0) { os << "\033[" << -m_col << "D"; }
-                 if (m_col > 0) { os << "\033[" << m_col << "C"; }
-                 pos::invalidate(os);
-             }
-         };
+    inline detail::stream_output<detail::color_8, 48> bg(int c) {
+        return {c};
+    }
 
-         // Hides the cursor.
-         struct hide : public __impl::stream_format<hide, bool> {
-             using stream_format<hide, bool>::stream_format;
-             void apply(std::ostream& os, const bool& state) const override {
-                 if (state)  { os << "\033[?25l"; }
-                 else        { os << "\033[?25h"; }
-             }
-         };
+    inline detail::stream_output<detail::color_8, 38> fg(int c) {
+        return {c};
+    }
 
-         // Common formats
-         typedef __impl::binary<1, 22> bold;
-         typedef __impl::binary<3, 23> italic;
-         typedef __impl::binary<4, 24> underline;
+    inline detail::stream_output<detail::color_24, 48> bg(uint8_t r, uint8_t g, uint8_t b) {
+        return {r,g,b};
+    }
 
-         // Text (foreground) and background color
-         inline __impl::color_8<38> fg(uint8_t c) { return {c}; }
-         inline __impl::color_24<38> fg(uint8_t r, uint8_t g, uint8_t b) { return {r, g, b}; }
-         inline __impl::color_8<48> bg(uint8_t c) { return {c}; }
-         inline __impl::color_24<48> bg(uint8_t r, uint8_t g, uint8_t b) { return {r, g, b}; }
+    inline detail::stream_output<detail::color_24, 38> fg(uint8_t r, uint8_t g, uint8_t b) {
+        return {r,g,b};
+    }
 
-         // Apply default text color.
-         inline std::ostream& fg_default(std::ostream& os) {
-             return os << __impl::color_default<39>();
-         }
+    inline detail::stream_output<detail::pos> pos(int16_t row, int16_t col) {
+        return {row, col};
+    }
 
-         // Apply default background color.
-         inline std::ostream& bg_default(std::ostream& os) {
-             return os << __impl::color_default<49>();
-         }
+    inline detail::stream_output<detail::rpos> rpos(int16_t row, int16_t col) {
+        return {row, col};
+    }
 
-         // clear funtion
-         inline std::ostream& clear(std::ostream& os) {
-             os << "\033[0m";
-             return os;
-         }
+    inline detail::stream_output<detail::binary, 1, 22> bold(bool state) {
+        return {state};
+    }
 
-     }
+    inline detail::stream_output<detail::binary, 3, 23> italic(bool state) {
+        return {state};
+    }
+
+    inline detail::stream_output<detail::binary, 4, 24> underline(bool state) {
+        return {state};
+    }
+
+    inline detail::stream_output<detail::hide> hide(bool state) {
+        return {state};
+    }
+
+    inline std::ostream& fg_default(std::ostream& os) {
+        return os << fg(-1);
+    }
+
+    inline std::ostream& bg_default(std::ostream& os) {
+        return os << bg(-1);
+    }
+
+    inline std::ostream& clear(std::ostream& os) {
+        return os << "\033[0m";
+    }
+}
 
 #endif
