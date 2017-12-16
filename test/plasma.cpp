@@ -18,12 +18,10 @@
 
 #include <chrono>
 #include <cmath>
-#include <cstdint>
 #include <iostream>
 #include <thread>
-#include <vector>
 #include <random>
-#include <limits>
+#include <vector>
 #include "../inc/ansi_format.hpp"
 
 static const float pi = 3.141592;
@@ -49,153 +47,88 @@ struct color {
 
 struct plasma {
     int m_rows, m_cols;
-    std::vector<std::vector<color>> m_colors;
-    plasma(int rows, int cols) : m_rows(rows), m_cols(cols), m_colors(rows+2, std::vector<color>(cols+2)) { }
-
-    void set_colors(float t) {
-        for (int row = 0; row < m_rows + 2; ++row) {
-            for (int col = 0; col < m_cols + 2; ++col) {
-                float _y = row/static_cast<float>(m_rows*2 + 2);
-                float _x = col/static_cast<float>(m_cols*2 + 2);
-
-                float v1 = sin(_x*5.0 + t);
-                float v2 = sin(5.0*(_x*sin(t / 2.0) + _y*cos(t/3.0)) + t);
-                float cx = _x + sin(t / 5.0)*5.0;
-                float cy = _y + sin(t / 3.0)*5.0;
-                float v3 = sin(sqrt(100.0*(cx*cx + cy*cy)) + t);
-
-                float vf = v1 + v2 + v3;
-                float r  = cos(vf*pi);
-                float g  = sin(vf*pi + 6.0*pi/3.0);
-                float b  = cos(vf*pi + 4.0*pi/3.0);
-
-                get_color(row, col) = color(
-                    static_cast<uint8_t>(r < 0 ? 0 : r*255),
-                    static_cast<uint8_t>(g < 0 ? 0 : g*255),
-                    static_cast<uint8_t>(b < 0 ? 0 : b*255)
-                    );
-            }
-        }
-    }
-
-    color& get_color(int row, int col) {
-        return m_colors[row][col];
-    }
-
+    plasma(int rows, int cols) : m_rows(rows), m_cols(cols) { }
 
     static int get_seed() {
         static std::random_device srd;
         static std::mt19937 mt(srd());
-        auto dist = std::uniform_int_distribution<int>(0, 100000);
+        auto dist = std::uniform_int_distribution<int>(3500, 100000);
         auto x = dist(mt);
         return x;
     }
 
-    /*
-    void run1(int dur, int seed) {
+    long run(int dur, int seed) {
         std::cout << format::clear;
-        int i = 0;
-        while(dur > 0) {
-            ++i;
-            auto start = std::chrono::system_clock::now();
-            auto t = (i + seed)/200.0;
+        auto init = std::chrono::high_resolution_clock::now();
+        int elapsed = 0;
+        int num_cycles = 0;
 
-            set_colors(t);
+        std::cout << format::hide(true);
+        while(elapsed < dur) {
+            elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - init).count();
+            auto t = (elapsed + seed)/3500.0;
 
-            std::cout << format::hide(true);
             for (int r = 0; r < m_rows; ++r) {
                 for (int c = 0; c < m_cols; ++c) {
-                    color& bg = get_color(r, c);
-                    std::cout << format::bg(bg.r, bg.g, bg.b) << " ";
+                    float _y = r/static_cast<float>(m_rows*2);
+                    float _x = c/static_cast<float>(m_cols*2);
+
+                    float v1 = sin(_x*5.0 + t);
+                    float v2 = sin(5.0*(_x*sin(t / 2.0) + _y*cos(t/3.0)) + t);
+                    float cx = _x + sin(t / 5.0)*5.0;
+                    float cy = _y + sin(t / 3.0)*5.0;
+                    float v3 = sin(sqrt(100.0*(cx*cx + cy*cy)) + t);
+
+                    float vf = v1 + v2 + v3;
+                    float r  = cos(vf*pi);
+                    float g  = sin(vf*pi + 6.0*pi/3.0);
+                    float b  = cos(vf*pi + 4.0*pi/3.0);
+
+                    std::cout << format::bg(
+                        static_cast<uint8_t>(r < 0 ? 0 : r*255),
+                        static_cast<uint8_t>(g < 0 ? 0 : g*255),
+                        static_cast<uint8_t>(b < 0 ? 0 : b*255)
+                        ) << " ";
                 }
-                std::cout << format::bg_default << "\n";
+                std::cout << format::bg(-1) << std::endl;
             }
-            std::cout << std::endl;
-            std::cout << format::rpos(-m_rows - 1, 0);
-            std::cout << format::hide(false);
-            auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count();
-            //std::this_thread::sleep_for(std::chrono::milliseconds(25 - delta));
-            dur -= 25;
+            std::cout << format::rpos(-m_rows, 0);
+            ++num_cycles;
         }
+
         std::cout << format::hide(true);
         std::cout << format::bg_default << format::fg_default;
         for (int r = 0; r < m_rows; ++r) {
             for (int c = 0; c < m_cols; ++c) {
                 std::cout << " ";
             }
-            std::cout << "\n";
-        }
-        std::cout << std::endl;
-        std::cout << format::rpos(-m_rows - 1, 0);
-        std::cout << format::hide(false);
-    }
-    */
-
-    void run2(int dur, int seed) {
-        std::cout << format2::clear;
-        int i = 0;
-        while(dur > 0) {
-            ++i;
-            auto start = std::chrono::system_clock::now();
-            auto t = (i + seed)/200.0;
-
-            set_colors(t);
-
-            std::cout << format2::hide(true);
-            for (int r = 0; r < m_rows; ++r) {
-                for (int c = 0; c < m_cols; ++c) {
-                    color& bg = get_color(r, c);
-                    std::cout << format2::bg(bg.r, bg.g, bg.b) << " ";
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                }
-                std::cout << format2::bg(-1) << format2::bg_default << std::endl;
-            }
             std::cout << std::endl;
-            std::cout << format2::rpos(-m_rows - 1, 0);
-            std::cout << format2::hide(false);
-            auto delta = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count();
-            //std::this_thread::sleep_for(std::chrono::milliseconds(25 - delta));
-            dur -= 25;
         }
-        std::cout << format2::hide(true);
-        std::cout << format2::bg_default << format2::fg_default;
-        for (int r = 0; r < m_rows; ++r) {
-            for (int c = 0; c < m_cols; ++c) {
-                std::cout << " ";
-            }
-            std::cout << "\n";
-        }
-        std::cout << std::endl;
-        std::cout << format2::rpos(-m_rows - 1, 0);
-        std::cout << format2::hide(false);
+        std::cout << format::rpos(-m_rows, 0);
+        std::cout << format::hide(false);
+        return num_cycles;
     }
 };
 
-void test1(plasma& p, int dur, int seed) {
-    auto start = std::chrono::steady_clock::now();
-    //p.run1(dur, seed);
-    auto end = std::chrono::steady_clock::now();
-    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms" << std::endl;
-}
+int main(int argc, char* argv[]) {
+    int d = 4000; // 4 seconds
+    auto s = plasma::get_seed();
+    int h = 30;
+    int w = 120;
+    bool t = false;
 
-int test2(plasma& p, int dur, int seed) {
-    auto start = std::chrono::steady_clock::now();
-    p.run2(dur, seed);
-    auto end = std::chrono::steady_clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-}
-
-
-int main(int argv, char* argc[]) {
-    int dur = 10000; // 4 seconds
-    auto seed = plasma::get_seed();
-    if (argv > 1) {
-        seed =  atoi(argc[1]);
+    for (int i = 1; i < argc; ++i) {
+        auto flag = std::string(argv[i]);
+        if (flag == "-d" || flag == "--duration") { d = std::atoi(argv[++i]); }
+        if (flag == "-s" || flag == "--seed")     { s = std::atoi(argv[++i]); }
+        if (flag == "-w" || flag == "--width")    { w = std::atoi(argv[++i]); }
+        if (flag == "-h" || flag == "--height")   { h = std::atoi(argv[++i]); }
+        if (flag == "-t" || flag == "--timeit")   { t = true; }
     }
 
-    plasma p(50, 120);
-    auto time = test2(p, dur, seed);
-    std::cout << "seed " << seed << " took " << time << " ms." << std::endl;
-
-
+    plasma p(h, w);
+    auto c = p.run(d, s);
+    if (t) {
+        std::cout << "seed " << s << " took " << c << " cycles" << std::endl;
+    }
 }
