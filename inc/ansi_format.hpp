@@ -38,9 +38,7 @@ namespace format {
         struct rpos { static constexpr bool use_ios_xalloc = false; };
         struct hide { static constexpr bool use_ios_xalloc = true; };
 
-        template<typename, int...> struct output_formater {
-            static void apply(std::ostream& os, int v);
-        };
+        template<typename, int...> struct output_formater;
 
         template<class C, int...INTS> class stream_output {
             static const int xid;
@@ -63,7 +61,6 @@ namespace format {
                 os.flags({});
                 output_formater<C, INTS...>::apply(os, v);
                 os.flags(flags);
-                os.iword(xid) = v;
             }
 
         public:
